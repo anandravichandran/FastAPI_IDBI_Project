@@ -1,6 +1,6 @@
 # Financial Suite
 
-An enterprise financial-intelligence platform that combines **four FastAPI
+An enterprise financial-intelligence platform that combines **five FastAPI
 microservices** behind a single gateway:
 
 | Sub-app | Mount | What it does |
@@ -9,6 +9,7 @@ microservices** behind a single gateway:
 | **Financial Coach** | `/coach` | Conversational, avatar-ready coaching (“Can I buy a car?”, “Should I increase SIP?”, “Can I afford a home loan?”, “Am I overspending?”, “How can I improve savings?”) over the customer's transactions, budget, savings and goals — grounded in **RAG** and **DeepSeek V3**. |
 | **Budget Planner** | `/budget` | Turns **income, expenses, bills and goals** into a recommended monthly budget (50/30/20), expense breakdown, savings percentage, alerts, overspending detection and a budget score/grade. Fully **deterministic** — no LLM or network I/O. |
 | **Savings Optimizer** | `/savings` | Turns **salary, expenses, loans, savings and goals** into a recommended **emergency fund**, **monthly saving** and an actionable **SIP / fixed-deposit / liquid-fund** split, with full investment allocation, goal projections, alerts and a savings score/grade. Fully **deterministic** — no LLM or network I/O. |
+| **RAG Service** | `/rag` | Upload **PDFs**, chunk documents, generate embeddings with **Sentence Transformers**, store vectors in **ChromaDB**, retrieve the most relevant chunks and assemble **grounded context for DeepSeek**. Ships dependency-light fallback backends (hashing embedder + in-memory cosine store) so it also runs fully offline. |
 
 ## Design: a modular monolith
 
@@ -40,19 +41,20 @@ OpenAPI docs. Benefits:
   share no mutable module state.
 - **Independent evolution** — each app can still run standalone
   (`uvicorn advisor.main:app` / `uvicorn coach.main:app` /
-  `uvicorn budget.main:app` / `uvicorn savings.main:app`).
+  `uvicorn budget.main:app` / `uvicorn savings.main:app` /
+  `uvicorn rag.main:app`).
 - **One deployment** — a single image, port, health probe and (where relevant)
-  DeepSeek key serve all four.
+  DeepSeek key serve all five.
 
-The packages are namespaced (`advisor.*`, `coach.*`, `budget.*`, `savings.*`)
-precisely so all four can be imported into the same Python process without
-module-name collisions.
+The packages are namespaced (`advisor.*`, `coach.*`, `budget.*`, `savings.*`,
+`rag.*`) precisely so all five can be imported into the same Python process
+without module-name collisions.
 
 ## Folder layout
 
 ```
 financial-suite/
-├─ server.py                 # gateway: mounts /advisor, /coach, /budget, /savings
+├─ server.py                 # gateway: mounts /advisor, /coach, /budget, /savings, /rag
 ├─ advisor/                  # Investment Advisor (Clean Architecture package)
 │  └─ main.py  api/  services/  domain/  repositories/  schemas/  core/
 ├─ coach/                    # Financial Coach (Clean Architecture package)
@@ -61,8 +63,10 @@ financial-suite/
 │  └─ main.py  api/  services/  domain/  schemas/  core/
 ├─ savings/                  # Savings Optimizer (Clean Architecture package)
 │  └─ main.py  api/  services/  domain/  schemas/  core/
+├─ rag/                      # RAG Service (Clean Architecture package)
+│  └─ main.py  api/  services/  domain/  repositories/  schemas/  core/
 ├─ tests/
-│  ├─ advisor/   ├─ coach/   ├─ budget/   └─ savings/
+│  ├─ advisor/  ├─ coach/  ├─ budget/  ├─ savings/  └─ rag/
 ├─ requirements.txt  requirements-dev.txt
 ├─ Dockerfile  docker-compose.yml  Makefile  pyproject.toml
 └─ .env.example  .gitignore  README.md
@@ -82,6 +86,36 @@ savings/
 └─ core/{config,exceptions,logging,middleware,error_handlers}.py
 ```
 
+### RAG Service internals
+
+```
+rag/
+├─ main.py                          # app factory (create_app) + ASGI app
+├─ api/
+│  ├─ deps.py                       # DI composition root (get_rag_service)
+│  └─ v1/{documents,query,health}.py# thin controllers (upload / retrieve / probe)
+├─ services/
+│  ├─ chunking.py                   # boundary-aware, overlapping text chunker
+│  └─ rag_service.py                # ingest → chunk → embed → store → retrieve → context
+├─ domain/
+│  ├─ {entities,enums}.py           # Document / Chunk / RetrievalResult / RagContext
+│  └─ interfaces/                   # ports: parser, embedder, vector store, registry
+├─ repositories/                    # adapters (swappable behind the ports):
+│  ├─ pdf_parser.py                 # pypdf text extraction
+│  ├─ sentence_transformer_embedder.py  # production embeddings
+│  ├─ hashing_embedder.py           # offline hashing-bag-of-words fallback
+│  ├─ chroma_vector_store.py        # ChromaDB persistent cosine store
+│  ├─ memory_vector_store.py        # in-memory cosine fallback
+│  └─ document_registry.py          # in-memory document/chunk catalog
+├─ schemas/{request,response}.py    # Pydantic DTOs + domain mapping
+└─ core/{config,exceptions,logging,middleware,error_handlers}.py
+```
+
+The **DeepSeek contract**: `/rag/api/v1/rag/context` returns a ready-to-send
+`system` + `user` message pair (the user turn embeds the retrieved chunks as
+`Context:` followed by the question), plus the raw ranked chunks and a token
+estimate — drop it straight into a DeepSeek chat-completions call.
+
 ## Route map
 
 | Method | Path | Purpose |
@@ -100,6 +134,14 @@ savings/
 | `POST` | `/savings/api/v1/savings/optimize` | Optimize savings & investment allocation |
 | `GET`  | `/savings/api/v1/health` | Savings health |
 | `GET`  | `/savings/docs` | **Savings** OpenAPI docs |
+| `POST` | `/rag/api/v1/documents` | Upload & index a PDF |
+| `GET`  | `/rag/api/v1/documents` | List indexed documents |
+| `GET`  | `/rag/api/v1/documents/stats` | Index statistics |
+| `GET`/`DELETE` | `/rag/api/v1/documents/{id}` | Inspect / delete a document |
+| `POST` | `/rag/api/v1/rag/query` | Retrieve the most relevant chunks |
+| `POST` | `/rag/api/v1/rag/context` | Assemble grounded context for DeepSeek |
+| `GET`  | `/rag/api/v1/health` | RAG health |
+| `GET`  | `/rag/docs` | **RAG** OpenAPI docs |
 
 ## Quickstart
 
@@ -117,6 +159,7 @@ Then open:
 - **http://localhost:8000/coach/docs** — Financial Coach
 - **http://localhost:8000/budget/docs** — Budget Planner
 - **http://localhost:8000/savings/docs** — Savings Optimizer
+- **http://localhost:8000/rag/docs** — RAG Service
 
 ```bash
 # Savings Optimizer — salary, expenses, loans, savings, goals → full plan:
@@ -154,6 +197,12 @@ curl -s http://localhost:8000/coach/api/v1/coach/chat \
   -d '{"customer_id":"cust-001","message":"Can I buy a car worth 12 lakh?"}' | jq
 
 # Advisor: see /advisor/docs for the full request schema.
+
+# RAG — upload a PDF, then fetch grounded context for DeepSeek:
+curl -s -F 'file=@whitepaper.pdf' http://localhost:8000/rag/api/v1/documents | jq
+curl -s http://localhost:8000/rag/api/v1/rag/context \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"What is the recommended emergency fund?","top_k":5}' | jq
 ```
 
 ### What the Savings Optimizer returns

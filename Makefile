@@ -1,4 +1,4 @@
-.PHONY: install install-dev run run-advisor run-coach run-budget run-savings test test-advisor test-coach test-budget test-savings lint format docker
+.PHONY: install install-dev run run-advisor run-coach run-budget run-savings run-rag run-market test test-advisor test-coach test-budget test-savings test-rag test-market lint format docker
 
 install:
 	pip install -r requirements.txt
@@ -6,7 +6,7 @@ install:
 install-dev:
 	pip install -r requirements-dev.txt
 
-# Run the whole suite (advisor + coach) behind one gateway.
+# Run the whole suite (advisor + coach + budget + savings + rag + market) behind one gateway.
 run:
 	uvicorn server:app --reload --host 0.0.0.0 --port 8000
 
@@ -23,6 +23,12 @@ run-budget:
 run-savings:
 	uvicorn savings.main:app --reload --port 8004
 
+run-rag:
+	uvicorn rag.main:app --reload --port 8005
+
+run-market:
+	uvicorn market.main:app --reload --port 8006
+
 test:
 	pytest
 
@@ -38,11 +44,17 @@ test-budget:
 test-savings:
 	pytest tests/savings
 
+test-rag:
+	pytest tests/rag
+
+test-market:
+	pytest tests/market
+
 lint:
-	ruff check advisor coach budget savings server.py tests
+	ruff check advisor coach budget savings rag market server.py tests
 
 format:
-	ruff check --fix advisor coach budget savings server.py tests
+	ruff check --fix advisor coach budget savings rag market server.py tests
 
 docker:
 	docker compose up --build

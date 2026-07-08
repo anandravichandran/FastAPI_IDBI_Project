@@ -15,6 +15,8 @@ COPY advisor ./advisor
 COPY coach ./coach
 COPY budget ./budget
 COPY savings ./savings
+COPY rag ./rag
+COPY market ./market
 COPY server.py ./server.py
 
 RUN useradd --create-home --uid 10001 appuser
