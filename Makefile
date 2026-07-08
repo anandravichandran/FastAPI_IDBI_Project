@@ -1,0 +1,48 @@
+.PHONY: install install-dev run run-advisor run-coach run-budget run-savings test test-advisor test-coach test-budget test-savings lint format docker
+
+install:
+	pip install -r requirements.txt
+
+install-dev:
+	pip install -r requirements-dev.txt
+
+# Run the whole suite (advisor + coach) behind one gateway.
+run:
+	uvicorn server:app --reload --host 0.0.0.0 --port 8000
+
+# Optionally run a single sub-app standalone.
+run-advisor:
+	uvicorn advisor.main:app --reload --port 8001
+
+run-coach:
+	uvicorn coach.main:app --reload --port 8002
+
+run-budget:
+	uvicorn budget.main:app --reload --port 8003
+
+run-savings:
+	uvicorn savings.main:app --reload --port 8004
+
+test:
+	pytest
+
+test-advisor:
+	pytest tests/advisor
+
+test-coach:
+	pytest tests/coach
+
+test-budget:
+	pytest tests/budget
+
+test-savings:
+	pytest tests/savings
+
+lint:
+	ruff check advisor coach budget savings server.py tests
+
+format:
+	ruff check --fix advisor coach budget savings server.py tests
+
+docker:
+	docker compose up --build

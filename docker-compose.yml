@@ -1,0 +1,14 @@
+services:
+  financial-suite:
+    build: .
+    image: financial-suite:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: dev
+      LOG_JSON: "true"
+      # One key powers DeepSeek narration for BOTH sub-apps:
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+    env_file:
+      - .env
+    restart: unless-stopped
