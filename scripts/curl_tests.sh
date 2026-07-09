@@ -96,6 +96,14 @@ ok_any() {
 
 JSON=(-H 'Content-Type: application/json')
 
+# ---- Windows path conversion for native mingw64 curl -------------------------
+# Git Bash's /mingw64/bin/curl is a native Windows binary; it cannot read POSIX
+# paths embedded inside -F arguments (e.g.  file=@/tmp/foo).  cygpath -w
+# converts them to Windows-native paths (forward slashes accepted by curl).
+to_win_path() {
+  cygpath -w "$1" 2>/dev/null || echo "$1"
+}
+
 # ==============================================================================
 hr "0.  META / HEALTH / DISCOVERY"
 check "GET  /"                        200 "$BASE_URL/"
@@ -220,7 +228,8 @@ PYEOF
 fi
 
 if [[ -f "$PDF" ]]; then
-  check "POST rag upload PDF (201)"     201 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F "file=@${PDF};type=application/pdf"
+  PDF_WIN=$(to_win_path "$PDF")
+  check "POST rag upload PDF (201)"     201 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F "file=@${PDF_WIN};type=application/pdf"
 else
   echo "  SKIP rag upload (set PDF=/path/to/file.pdf)"
 fi
@@ -228,7 +237,8 @@ fi
 # Guaranteed text file for non-PDF upload test
 NON_PDF_SOURCE=$(mktemp)
 echo "not a pdf" > "$NON_PDF_SOURCE"
-check "POST rag upload non-PDF (415)"  415 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F "file=@${NON_PDF_SOURCE};type=text/plain"
+NON_PDF_WIN=$(to_win_path "$NON_PDF_SOURCE")
+check "POST rag upload non-PDF (415)"  415 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F "file=@${NON_PDF_WIN};type=text/plain"
 rm -f "$NON_PDF_SOURCE"
 check "GET  rag list documents"         200 "$BASE_URL/rag/api/v1/documents" "${AUTH_HEADER[@]}"
 check "GET  rag stats"                  200 "$BASE_URL/rag/api/v1/documents/stats" "${AUTH_HEADER[@]}"

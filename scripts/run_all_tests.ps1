@@ -118,20 +118,20 @@ if (-not $serverAlreadyRunning) {
 # ---------------------------------------------------------------------------
 Write-Step "5. Wait for server health"
 
-$maxRetries = 30
+$maxRetries = 45
 $retryDelaySeconds = 2
 $healthy = $false
 
 for ($i = 1; $i -le $maxRetries; $i++) {
     try {
-        $response = Invoke-WebRequest -Uri $healthUrl -Method GET -TimeoutSec 3 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -Method GET -TimeoutSec 3 -ErrorAction Stop
         if ($response.StatusCode -eq 200) {
-            Write-Pass "Server is healthy after ${i} retries."
             $healthy = $true
             break
         }
+        Write-Info "Server returned $($response.StatusCode), waiting..."
     } catch {
-        # Still waiting
+        Write-Info "Health check threw: $_"
     }
     Write-Info "Waiting for server... attempt $i of $maxRetries (waiting ${retryDelaySeconds}s)"
     Start-Sleep -Seconds $retryDelaySeconds
