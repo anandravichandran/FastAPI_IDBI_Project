@@ -20,7 +20,7 @@ Route map
 
     /advisor/docs                  Investment Advisor OpenAPI docs
     /advisor/api/v1/health         Advisor health
-    /advisor/api/v1/advisor        POST  → investment advice
+    /advisor/api/v1/advisor/advice POST  → investment advice
 
     /coach/docs                    Financial Coach OpenAPI docs
     /coach/api/v1/health           Coach health
@@ -63,6 +63,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+from app.core.middleware import RequestContextMiddleware
 from common.hardening import harden_app
 from common.settings import get_security_settings, validate_production_env
 
@@ -152,6 +153,7 @@ app = FastAPI(
 # enforcement and edge rate-limiting are inherited suite-wide without touching
 # any sub-app's routes or business logic.
 harden_app(app, get_security_settings())
+app.add_middleware(RequestContextMiddleware)
 
 
 @app.get("/", tags=["meta"], summary="Suite metadata")
@@ -163,7 +165,7 @@ async def root() -> dict[str, object]:
             "advisor": {
                 "base": "/advisor",
                 "docs": "/advisor/docs",
-                "advice": "/advisor/api/v1/advisor",
+                "advice": "/advisor/api/v1/advisor/advice",
             },
             "coach": {
                 "base": "/coach",

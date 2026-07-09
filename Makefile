@@ -1,4 +1,4 @@
-.PHONY: install install-dev run run-advisor run-coach run-budget run-savings run-rag run-market test test-advisor test-coach test-budget test-savings test-rag test-market lint format docker
+.PHONY: install install-dev run run-advisor run-coach run-budget run-savings run-rag run-market test test-advisor test-coach test-budget test-savings test-rag test-market test-integration test-all lint format docker
 
 install:
 	pip install -r requirements.txt
@@ -50,8 +50,16 @@ test-rag:
 test-market:
 	pytest tests/market
 
+# Run curl-based integration / smoke tests against a running server (start one first).
+test-integration:
+	bash scripts/curl_tests.sh
+
+# Full pipeline: unit tests (pytest) → integration tests (curl).
+test-all:
+	bash scripts/run_all_tests.sh
+
 lint:
-	ruff check advisor coach budget savings rag market server.py tests
+	ruff check advisor coach budget savings rag market app common server.py tests
 
 format:
 	ruff check --fix advisor coach budget savings rag market server.py tests

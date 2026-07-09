@@ -24,7 +24,11 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
         extra="ignore",
+        frozen=True,
     )
+
+    def __hash__(self) -> int:
+        return hash(self.model_dump_json())
 
     # --- Application ---------------------------------------------------------
     app_name: str = "Financial Coach Service"

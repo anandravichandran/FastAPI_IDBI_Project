@@ -1,0 +1,90 @@
+# =============================================================================
+# CI pipeline for the Financial Suite
+# =============================================================================
+# Runs on every push and pull request against main.  Executes:
+#   1. Lint (ruff)
+#   2. Unit + integration tests (pytest)
+#   3. curl smoke tests against a freshly-started server
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_NO_CACHE_DIR: "1"
+  # Run the server in synthetic / local mode so no external services needed.
+  MARKET_PROVIDER_BACKEND: synthetic
+  MARKET_RATE_LIMIT_ENABLED: "false"
+  EMBEDDING_BACKEND: hashing
+  VECTOR_BACKEND: memory
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint with ruff
+        run: |
+          ruff check advisor coach budget savings rag market app common server.py tests
+
+      - name: Run pytest (unit + integration)
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
+
+      - name: Start server (background)
+        run: |
+          uvicorn server:app --host 127.0.0.1 --port 8000 --log-level warning &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:8000/health; then
+              echo "Server ready (attempt $i)"
+              break
+            fi
+            echo "Waiting ... attempt $i/30"
+            sleep 2
+          done
+
+      - name: Run curl integration / smoke tests
+        run: |
+          bash scripts/curl_tests.sh
+
+      - name: Stop server
+        if: always()
+        run: |
+          kill ${{ env.SERVER_PID }} 2>/dev/null || true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.python-version }}
+          path: htmlcov/
+          if-no-files-found: ignore

@@ -20,6 +20,15 @@ from rag.core.logging import get_logger, request_id_ctx
 logger = get_logger(__name__)
 
 
+def _sanitize_errors(errors: list[dict]) -> list[dict]:
+    """Convert non-serializable values in Pydantic error ctx to strings."""
+    for e in errors:
+        ctx = e.get("ctx")
+        if ctx and "error" in ctx:
+            ctx["error"] = str(ctx["error"])
+    return errors
+
+
 def _envelope(
     *,
     error_code: str,
@@ -69,7 +78,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=_envelope(
                 error_code="request_validation_error",
                 message="One or more request fields are invalid.",
-                details=exc.errors(),
+                details=_sanitize_errors(exc.errors()),
             ),
         )
 

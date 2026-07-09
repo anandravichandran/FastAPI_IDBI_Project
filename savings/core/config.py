@@ -20,7 +20,11 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         case_sensitive=False,
+        frozen=True,
     )
+
+    def __hash__(self) -> int:
+        return hash(self.model_dump_json())
 
     # --- Application ---
     app_name: str = "Savings Optimizer Service"

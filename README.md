@@ -67,6 +67,12 @@ financial-suite/
 │  └─ main.py  api/  services/  domain/  repositories/  schemas/  core/
 ├─ tests/
 │  ├─ advisor/  ├─ coach/  ├─ budget/  ├─ savings/  └─ rag/
+├─ scripts/
+│  ├─ curl_tests.sh           # curl integration / smoke test matrix
+│  ├─ run_all_tests.sh        # one-command bash test pipeline
+│  └─ run_all_tests.ps1       # one-command PowerShell test pipeline
+├─ .github/workflows/
+│  └─ ci.yml                  # GitHub Actions CI (lint → pytest → curl)
 ├─ requirements.txt  requirements-dev.txt
 ├─ Dockerfile  docker-compose.yml  Makefile  pyproject.toml
 └─ .env.example  .gitignore  README.md
@@ -123,7 +129,7 @@ estimate — drop it straight into a DeepSeek chat-completions call.
 | `GET`  | `/` | Suite metadata + links |
 | `GET`  | `/health` | Aggregate liveness probe |
 | `GET`  | `/docs` | Gateway OpenAPI docs |
-| `POST` | `/advisor/api/v1/advisor` | Generate investment advice |
+| `POST` | `/advisor/api/v1/advisor/advice` | Generate investment advice |
 | `GET`  | `/advisor/docs` | **Advisor** OpenAPI docs |
 | `POST` | `/coach/api/v1/coach/chat` | Ask the coach a money question |
 | `GET`  | `/coach/api/v1/coach/history` | Conversation history |
@@ -264,15 +270,64 @@ DeepSeek key powers the whole suite.
 
 ## Testing
 
+### Unit & integration tests (pytest)
+
 ```bash
 pip install -r requirements-dev.txt
-pytest                # all suites
-pytest tests/savings  # or one at a time
+pytest                    # all suites
+pytest tests/savings      # or one at a time
+make test                 # same via Makefile
 ```
 
 Tests run fully offline: DeepSeek is replaced by a fake, repositories are
 in-memory, and the budget & savings engines are pure — no network or API key
 required.
+
+### Integration / smoke tests (curl)
+
+A full curl-based test matrix covers every endpoint (including authentication,
+validation, error handling, malformed JSON, 404, 405 and uploads) across all
+six sub-applications plus the gateway meta-routes.
+
+```bash
+# 1. Start the server in one terminal:
+make run
+#    or: uvicorn server:app --reload --host 0.0.0.0 --port 8000
+
+# 2. In another terminal, run the curl tests:
+make test-integration
+#    or: bash scripts/curl_tests.sh
+
+# Custom host / API key:
+BASE_URL=http://localhost:8000 API_KEY=my-key bash scripts/curl_tests.sh
+```
+
+**Required environment variables:**
+
+| Variable     | Default                  | Description                                      |
+|--------------|--------------------------|--------------------------------------------------|
+| `BASE_URL`   | `http://localhost:8000`  | Target server for curl tests                     |
+| `API_KEY`    | _(empty)_                | X-API-Key value (omit when auth is disabled)     |
+| `AUTH_ENABLED` | `false` in local dev   | Set to `true` on the server to exercise auth     |
+
+### Full pipeline (one command)
+
+```bash
+make test-all
+#    or: bash scripts/run_all_tests.sh
+#    or: .\scripts\run_all_tests.ps1  (Windows / PowerShell)
+```
+
+The `run_all_tests` orchestrator:
+1. Installs dev dependencies (if missing)
+2. Runs `pytest` (unit + integration)
+3. Starts the FastAPI server (or reuses an already-running one)
+4. Waits for the `/health` endpoint to respond 200
+5. Executes `scripts/curl_tests.sh`
+6. Prints a coloured summary and stops the server
+
+In CI (GitHub Actions) the workflow runs lint → pytest → curl tests
+sequentially on every push/PR, with coverage reports uploaded as artifacts.
 
 ## Docker
 
