@@ -73,8 +73,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if not settings.is_production else [],
-        allow_credentials=True,
+        # SECURITY FIX: see advisor/main.py — no "*" + credentials.
+        # Read defensively so both the pydantic and offline-shim Settings work.
+        allow_origins=getattr(settings, "cors_allow_origins", ["*"]),
+        allow_credentials=getattr(settings, "cors_allow_credentials", False),
         allow_methods=["*"],
         allow_headers=["*"],
     )

@@ -208,6 +208,16 @@ class CoachService:
         snapshot = self._analyzer.build_snapshot(profile)
         return profile, snapshot
 
+    def health_score(self, snapshot: FinancialSnapshot) -> tuple[int, str]:
+        """Public accessor for the deterministic financial-health score.
+
+        Exposes the stateless analyzer computation through the service's public
+        API so callers (e.g. the /coach/summary endpoint) never reach into the
+        service's private ``_analyzer`` attribute (encapsulation / Law of
+        Demeter). Behaviour is identical to the previous inlined call.
+        """
+        return self._analyzer.health_score(snapshot)
+
     # -- internals -----------------------------------------------------------
     def _run_assessment(
         self,

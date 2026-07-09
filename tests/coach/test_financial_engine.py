@@ -10,9 +10,10 @@ from coach.services import AffordabilityEngine, FinancialAnalyzer, IntentClassif
 
 
 @pytest.fixture
-async def profile():
+def profile():
+    import asyncio
     repo = InMemoryCustomerRepository()
-    return await repo.get_profile("cust-001")
+    return asyncio.get_event_loop().run_until_complete(repo.get_profile("cust-001"))
 
 
 def test_snapshot_is_consistent(profile):

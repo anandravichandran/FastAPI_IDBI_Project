@@ -1,0 +1,71 @@
+# Render deployment blueprint for the Financial Suite (modular monolith).
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Secrets (API_KEYS, JWT_SECRET, DEEPSEEK/NVIDIA/OPENBB keys) are marked
+# sync:false so they are NEVER stored in git — set them in the Render dashboard
+# or a linked env group. Production defaults enable auth, rate limiting, HSTS
+# and a locked-down CORS/trusted-host policy.
+services:
+  - type: web
+    name: financial-suite
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard
+    healthCheckPath: /livez
+    autoDeploy: false
+    numInstances: 2
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_JSON
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO
+      # ---- Authentication (fail-closed in production) ----
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: API_KEYS            # comma-separated allowlist of gateway API keys
+        sync: false
+      - key: JWT_SECRET          # HS256 signing secret for bearer tokens
+        sync: false
+      - key: JWT_ALGORITHMS
+        value: HS256
+      - key: JWT_ISSUER
+        sync: false
+      - key: JWT_AUDIENCE
+        sync: false
+      # ---- Network policy ----
+      - key: TRUSTED_HOSTS       # e.g. financial-suite.onrender.com,api.bank.example
+        sync: false
+      - key: CORS_ALLOW_ORIGINS  # explicit origins; never '*' with credentials
+        sync: false
+      - key: CORS_ALLOW_CREDENTIALS
+        value: "false"
+      # ---- Edge rate limiting ----
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "120"
+      - key: RATE_LIMIT_BURST
+        value: "40"
+      # ---- Security headers ----
+      - key: SECURITY_HEADERS_ENABLED
+        value: "true"
+      - key: HSTS_ENABLED
+        value: "true"
+      # ---- SSRF allowlist for outbound calls ----
+      - key: OUTBOUND_ALLOWED_HOSTS
+        value: api.deepseek.com,integrate.api.nvidia.com
+      # ---- LLM / market provider secrets ----
+      - key: LLM_PROVIDER
+        value: nvidia
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: NVIDIA_MODEL
+        value: deepseek-ai/deepseek-v4-pro
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: OPENBB_PAT
+        sync: false

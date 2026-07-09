@@ -24,7 +24,6 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
         extra="ignore",
-        frozen=True,
     )
 
     # --- Application ---------------------------------------------------------
@@ -79,6 +78,14 @@ class Settings(BaseSettings):
     home_loan_rate_pct: float = 8.5
     default_car_loan_years: int = 7
     default_home_loan_years: int = 20
+
+
+    # --- CORS (SECURITY FIX) --------------------------------------------------
+    # Explicit origin allowlist. Never combine "*" with credentials. In
+    # production set CORS_ALLOW_ORIGINS to a comma/JSON list of trusted
+    # front-end origins and CORS_ALLOW_CREDENTIALS=true only then.
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_credentials: bool = False
 
     @property
     def is_production(self) -> bool:

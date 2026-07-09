@@ -74,8 +74,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if not settings.is_production else [],
-        allow_credentials=True,
+        # SECURITY FIX: the wildcard origin "*" combined with
+        # allow_credentials=True is rejected by browsers and is unsafe. Use an
+        # explicit allowlist from settings; only enable credentials when the
+        # origin list is explicit (never with "*").
+        allow_origins=settings.cors_allow_origins,
+        allow_credentials=settings.cors_allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
     )

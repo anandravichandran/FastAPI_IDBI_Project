@@ -131,7 +131,7 @@ async def summary(
 ) -> SummaryResponse:
     """Return a deterministic financial-health summary for the avatar home screen."""
     profile, snap = await service.summary(customer_id=customer_id)
-    score, grade = service._analyzer.health_score(snap)  # analyzer is stateless
+    score, grade = service.health_score(snap)  # public, stateless computation
 
     highlights: list[str] = []
     if snap.savings_rate_pct >= 20:

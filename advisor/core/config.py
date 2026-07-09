@@ -25,7 +25,6 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
         extra="ignore",
-        frozen=True,
     )
 
     # --- Application ---------------------------------------------------------
@@ -78,8 +77,13 @@ class Settings(BaseSettings):
     emergency_fund_months: float = Field(default=6.0, gt=0)
     default_expected_inflation_pct: float = 6.0
 
-    def __hash__(self) -> int:
-        return hash(self.model_dump_json())
+
+    # --- CORS (SECURITY FIX) --------------------------------------------------
+    # Explicit origin allowlist. Never combine "*" with credentials. In
+    # production set CORS_ALLOW_ORIGINS to a comma/JSON list of trusted
+    # front-end origins and CORS_ALLOW_CREDENTIALS=true only then.
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_credentials: bool = False
 
     @property
     def is_production(self) -> bool:

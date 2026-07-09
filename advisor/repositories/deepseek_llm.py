@@ -8,10 +8,12 @@ deterministic explanation.
 """
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 
 import httpx
 
+from common.resilience.http_client import build_async_client
 from advisor.core.config import Settings
 from advisor.core.exceptions import LLMError
 from advisor.core.logging import get_logger
@@ -25,17 +27,21 @@ class DeepSeekLLMClient(ILLMClient):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._client: httpx.AsyncClient | None = None
+        # Guards lazy client creation (see NvidiaLLMClient).
+        self._lock = asyncio.Lock()
 
-    def _http(self) -> httpx.AsyncClient:
+    async def _http(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                base_url=self._settings.deepseek_base_url.rstrip("/"),
-                timeout=httpx.Timeout(self._settings.deepseek_timeout_seconds),
-                headers={
-                    "Authorization": f"Bearer {self._settings.deepseek_api_key}",
-                    "Content-Type": "application/json",
-                },
-            )
+            async with self._lock:
+                if self._client is None:
+                    self._client = build_async_client(
+                        base_url=self._settings.deepseek_base_url.rstrip("/"),
+                        timeout_seconds=self._settings.deepseek_timeout_seconds,
+                        headers={
+                            "Authorization": f"Bearer {self._settings.deepseek_api_key}",
+                            "Content-Type": "application/json",
+                        },
+                    )
         return self._client
 
     async def complete(
@@ -58,7 +64,8 @@ class DeepSeekLLMClient(ILLMClient):
             payload["response_format"] = {"type": "json_object"}
 
         try:
-            response = await self._http().post("/chat/completions", json=payload)
+            client = await self._http()
+            response = await client.post("/chat/completions", json=payload)
             response.raise_for_status()
             data = response.json()
         except httpx.HTTPStatusError as exc:

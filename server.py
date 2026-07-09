@@ -63,6 +63,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+from common.hardening import harden_app
+from common.settings import get_security_settings, validate_production_env
+
+# Fail fast on a misconfigured production deploy (missing auth secrets, unsafe
+# CORS / trusted-host policy). No-op outside production.
+validate_production_env(get_security_settings())
+
 from advisor.api.deps import shutdown_dependencies as shutdown_advisor
 from advisor.main import create_app as create_advisor_app
 from budget.api.deps import shutdown_dependencies as shutdown_budget
@@ -139,6 +146,13 @@ app = FastAPI(
     license_info={"name": "MIT"},
 )
 
+# Apply the cross-cutting production security & resilience stack once, at the
+# gateway. Because the sub-apps are *mounted*, parent middleware wraps every
+# sub-application request, so authentication, security headers, trusted-host
+# enforcement and edge rate-limiting are inherited suite-wide without touching
+# any sub-app's routes or business logic.
+harden_app(app, get_security_settings())
+
 
 @app.get("/", tags=["meta"], summary="Suite metadata")
 async def root() -> dict[str, object]:
@@ -196,6 +210,21 @@ async def health() -> dict[str, str]:
         "savings": "mounted",
         "rag": "mounted",
         "market": "mounted",
+    }
+
+
+@app.get("/livez", tags=["meta"], summary="Kubernetes/Render liveness probe")
+async def livez() -> dict[str, str]:
+    """Process is up. Never touches downstream dependencies."""
+    return {"status": "alive"}
+
+
+@app.get("/readyz", tags=["meta"], summary="Readiness probe")
+async def readyz() -> dict[str, object]:
+    """All sub-apps have been constructed and mounted."""
+    return {
+        "status": "ready",
+        "mounts": ["advisor", "coach", "budget", "savings", "rag", "market"],
     }
 
 

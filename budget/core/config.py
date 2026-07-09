@@ -20,7 +20,6 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         case_sensitive=False,
-        frozen=True,
     )
 
     # --- Application ---
@@ -47,6 +46,14 @@ class Settings(BaseSettings):
     overspend_tolerance_pct: float = Field(default=5.0, ge=0, le=100)
     # Default currency assumed when a request omits one.
     default_currency: str = "INR"
+
+
+    # --- CORS (SECURITY FIX) --------------------------------------------------
+    # Explicit origin allowlist. Never combine "*" with credentials. In
+    # production set CORS_ALLOW_ORIGINS to a comma/JSON list of trusted
+    # front-end origins and CORS_ALLOW_CREDENTIALS=true only then.
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_credentials: bool = False
 
     @property
     def is_production(self) -> bool:

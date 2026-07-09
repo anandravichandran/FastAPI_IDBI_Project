@@ -20,7 +20,6 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         case_sensitive=False,
-        frozen=True,
     )
 
     # --- Application ---
@@ -62,6 +61,14 @@ class Settings(BaseSettings):
     aggressive_sip_pct: float = 70.0
     aggressive_fd_pct: float = 20.0
     aggressive_liquid_pct: float = 10.0
+
+
+    # --- CORS (SECURITY FIX) --------------------------------------------------
+    # Explicit origin allowlist. Never combine "*" with credentials. In
+    # production set CORS_ALLOW_ORIGINS to a comma/JSON list of trusted
+    # front-end origins and CORS_ALLOW_CREDENTIALS=true only then.
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_credentials: bool = False
 
     @property
     def is_production(self) -> bool:
