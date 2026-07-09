@@ -44,11 +44,11 @@ def test_chat_creates_and_returns_history():
 
     settings = Settings(deepseek_api_key=None, log_json=False)
     app = create_app(settings)
-    coach.dependency_overrides[deps.get_llm_client] = lambda: FakeLLM()
+    app.dependency_overrides[deps.get_llm_client] = lambda: FakeLLM()
     # Fresh conversation store for this app instance.
     from coach.repositories import InMemoryConversationRepository
     store = InMemoryConversationRepository()
-    coach.dependency_overrides[deps.get_conversation_repository] = lambda: store
+    app.dependency_overrides[deps.get_conversation_repository] = lambda: store
 
     with TestClient(app) as client:
         chat = client.post(

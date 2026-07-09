@@ -39,7 +39,7 @@ def test_advice_falls_back_without_llm(settings, make_service, sample_payload):
     from fastapi.testclient import TestClient
 
     app = create_app(settings)
-    advisor.dependency_overrides[deps.get_advisor_service] = lambda: make_service(llm_fail=True)
+    app.dependency_overrides[deps.get_advisor_service] = lambda: make_service(llm_fail=True)
     with TestClient(app) as client:
         resp = client.post("/api/v1/advisor/advice", json=sample_payload)
     assert resp.status_code == 200

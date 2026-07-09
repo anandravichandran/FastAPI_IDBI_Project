@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import deps
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.domain.entities import (
     KnowledgeSnippet,
     LLMMessage,
@@ -90,6 +90,7 @@ def make_service(settings: Settings, analyzer: PortfolioAnalyzer):
 def client(settings: Settings, make_service):
     app = create_app(settings)
     app.dependency_overrides[deps.get_advisor_service] = lambda: make_service()
+    app.dependency_overrides[get_settings] = lambda: settings
     with TestClient(app) as test_client:
         yield test_client
 

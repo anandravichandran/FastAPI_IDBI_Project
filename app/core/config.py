@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         case_sensitive=False,
         extra="ignore",
+        frozen=True,
     )
 
     # --- Application ---------------------------------------------------------
@@ -61,6 +62,9 @@ class Settings(BaseSettings):
     # --- Financial planning defaults ----------------------------------------
     emergency_fund_months: float = Field(default=6.0, gt=0)
     default_expected_inflation_pct: float = 6.0
+
+    def __hash__(self) -> int:
+        return hash(self.model_dump_json())
 
     @property
     def is_production(self) -> bool:

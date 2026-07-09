@@ -87,7 +87,7 @@ class RagService:
         created_at = dt.datetime.now(tz=dt.timezone.utc).isoformat()
         logger.info(
             "Ingesting document",
-            extra={"document_id": document_id, "filename": filename},
+            extra={"document_id": document_id, "doc_filename": filename},
         )
 
         try:

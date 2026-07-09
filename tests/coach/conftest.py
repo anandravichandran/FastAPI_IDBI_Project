@@ -76,7 +76,7 @@ def client(settings: Settings) -> TestClient:
     """TestClient with a FakeLLM injected via dependency override."""
     app = create_app(settings)
     fake = FakeLLM()
-    coach.dependency_overrides[deps.get_llm_client] = lambda: fake
-    coach.dependency_overrides[deps.get_settings] = lambda: settings
+    app.dependency_overrides[deps.get_llm_client] = lambda: fake
+    app.dependency_overrides[deps.get_settings] = lambda: settings
     with TestClient(app) as c:
         yield c

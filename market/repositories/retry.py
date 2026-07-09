@@ -73,5 +73,4 @@ def with_retries(
                     "error": type(exc).__name__,
                 },
             )
-            if delay > 0:
-                sleep_func(delay)
+            sleep_func(delay)

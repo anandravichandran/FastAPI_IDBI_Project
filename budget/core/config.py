@@ -20,6 +20,7 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
         case_sensitive=False,
+        frozen=True,
     )
 
     # --- Application ---

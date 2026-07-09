@@ -89,7 +89,7 @@ def make_service(settings: Settings, analyzer: PortfolioAnalyzer):
 @pytest.fixture
 def client(settings: Settings, make_service):
     app = create_app(settings)
-    advisor.dependency_overrides[deps.get_advisor_service] = lambda: make_service()
+    app.dependency_overrides[deps.get_advisor_service] = lambda: make_service()
     with TestClient(app) as test_client:
         yield test_client
 
