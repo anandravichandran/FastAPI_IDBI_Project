@@ -175,19 +175,46 @@ check "POST savings salary=0 (422)"     422 "$BASE_URL/savings/api/v1/savings/op
 hr "6.  RAG SERVICE  /rag"
 check "GET  rag health"                200 "$BASE_URL/rag/api/v1/health" "${AUTH_HEADER[@]}"
 
-# Generate a tiny valid PDF for upload tests (only when python3 is available).
+# Generate a tiny valid PDF for upload tests.
+PYTHON_CMD=""
+for cmd in python3 python; do command -v "$cmd" >/dev/null && { PYTHON_CMD=$cmd; break; }; done
 if [[ ! -f "$PDF" ]]; then
-  if command -v python3 >/dev/null; then
-    python3 - "$PDF" <<'PYEOF'
+  if [[ -n "$PYTHON_CMD" ]]; then
+    $PYTHON_CMD - "$PDF" <<'PYEOF'
+"""Generate a minimal valid PDF that pypdf can parse."""
 import sys
-pdf=(b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-     b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
-     b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 144]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
-     b"4 0 obj<</Length 74>>stream\nBT /F1 12 Tf 20 100 Td (Emergency fund: 6 months of expenses.) Tj ET\nendstream endobj\n"
-     b"5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
-     b"trailer<</Root 1 0 R>>\n%%EOF")
-open(sys.argv[1],"wb").write(pdf)
-print("wrote",sys.argv[1])
+
+header = b"%PDF-1.4\n"
+o1 = b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+o2 = b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+content_stream = (
+    b"BT /F1 24 Tf 100 700 Td (Emergency fund: 6 months of expenses.) Tj ET"
+)
+o3 = (
+    b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]"
+    b" /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+)
+o4 = (
+    b"4 0 obj\n<< /Length "
+    + str(len(content_stream)).encode()
+    + b" >>\nstream\n"
+    + content_stream
+    + b"\nendstream\nendobj\n"
+)
+o5 = b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+objs = [o1, o2, o3, o4, o5]
+body = b"".join(objs)
+xref = b"xref\n0 6\n0000000000 65535 f \n"
+offset = len(header)
+for obj in objs:
+    xref += f"{offset:010d} 00000 n \n".encode()
+    offset += len(obj)
+trailer = b"trailer\n<< /Size 6 /Root 1 0 R >>\n"
+startxref_val = len(header) + len(body)
+eof = b"startxref\n" + str(startxref_val).encode() + b"\n%%EOF\n"
+with open(sys.argv[1], "wb") as f:
+    f.write(header + body + xref + trailer + eof)
+print("wrote", sys.argv[1])
 PYEOF
   fi
 fi
@@ -198,7 +225,11 @@ else
   echo "  SKIP rag upload (set PDF=/path/to/file.pdf)"
 fi
 
-check "POST rag upload non-PDF (422)"  422 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F 'file=@/etc/hostname;type=text/plain'
+# Guaranteed text file for non-PDF upload test
+NON_PDF_SOURCE=$(mktemp)
+echo "not a pdf" > "$NON_PDF_SOURCE"
+check "POST rag upload non-PDF (415)"  415 "$BASE_URL/rag/api/v1/documents" -X POST "${AUTH_HEADER[@]}" -F "file=@${NON_PDF_SOURCE};type=text/plain"
+rm -f "$NON_PDF_SOURCE"
 check "GET  rag list documents"         200 "$BASE_URL/rag/api/v1/documents" "${AUTH_HEADER[@]}"
 check "GET  rag stats"                  200 "$BASE_URL/rag/api/v1/documents/stats" "${AUTH_HEADER[@]}"
 check "GET  rag missing doc (404)"      404 "$BASE_URL/rag/api/v1/documents/does-not-exist" "${AUTH_HEADER[@]}"

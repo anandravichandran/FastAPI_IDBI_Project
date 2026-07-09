@@ -60,7 +60,7 @@ class PdfDocumentParser(IDocumentParser):
             text = "\n\n".join(parts)
             page_count = len(reader.pages)
         except Exception as exc:  # noqa: BLE001 - surface as a domain error
-            logger.warning("PDF parse failed", extra={"filename": filename})
+            logger.warning("PDF parse failed", extra={"doc_filename": filename})
             raise DocumentProcessingError(
                 "Could not read the PDF; it may be corrupt or password-protected.",
                 details={"filename": filename},
