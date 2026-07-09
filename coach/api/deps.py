@@ -24,6 +24,7 @@ from coach.repositories import (
     DeepSeekLLMClient,
     InMemoryConversationRepository,
     InMemoryCustomerRepository,
+    NvidiaLLMClient,
     RagKnowledgeRepository,
 )
 from coach.services import (
@@ -55,7 +56,10 @@ def get_knowledge_repository() -> IKnowledgeRepository:
 
 @lru_cache
 def get_llm_client() -> ILLMClient:
-    return DeepSeekLLMClient(get_settings())
+    settings = get_settings()
+    if settings.llm_provider == "nvidia":
+        return NvidiaLLMClient(settings)
+    return DeepSeekLLMClient(settings)
 
 
 @lru_cache

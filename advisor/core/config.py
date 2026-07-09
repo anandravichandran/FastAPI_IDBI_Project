@@ -46,6 +46,21 @@ class Settings(BaseSettings):
     deepseek_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     deepseek_max_tokens: int = Field(default=1400, gt=0)
 
+    # --- LLM provider selection ----------------------------------------------
+    # "deepseek" (default, talks to api.deepseek.com) or "nvidia" (NVIDIA NIM
+    # hosted inference, OpenAI-compatible).
+    llm_provider: Literal["deepseek", "nvidia"] = "deepseek"
+
+    # --- NVIDIA NIM (OpenAI-compatible chat completions) ---------------------
+    nvidia_api_key: str | None = None
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_model: str = "deepseek-ai/deepseek-v4-pro"
+    nvidia_timeout_seconds: float = 60.0
+    nvidia_temperature: float = Field(default=1.0, ge=0.0, le=2.0)
+    nvidia_top_p: float = Field(default=0.95, ge=0.0, le=1.0)
+    nvidia_max_tokens: int = Field(default=16384, gt=0)
+    nvidia_thinking: bool = False
+
     # --- OpenBB market data --------------------------------------------------
     openbb_pat: str | None = None
     openbb_provider: str = "yfinance"
@@ -68,6 +83,8 @@ class Settings(BaseSettings):
 
     @property
     def llm_enabled(self) -> bool:
+        if self.llm_provider == "nvidia":
+            return bool(self.nvidia_api_key)
         return bool(self.deepseek_api_key)
 
 

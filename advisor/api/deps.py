@@ -19,6 +19,7 @@ from advisor.domain.interfaces.knowledge import IKnowledgeRepository
 from advisor.domain.interfaces.llm import ILLMClient
 from advisor.domain.interfaces.market_data import IMarketDataProvider
 from advisor.repositories.deepseek_llm import DeepSeekLLMClient
+from advisor.repositories.nvidia_llm import NvidiaLLMClient
 from advisor.repositories.openbb_market_data import OpenBBMarketDataProvider
 from advisor.repositories.rag_knowledge import RagKnowledgeRepository
 from advisor.services.advisor_service import AdvisorService
@@ -40,6 +41,8 @@ def get_knowledge_repository(settings: Settings) -> IKnowledgeRepository:
 
 @lru_cache
 def get_llm_client(settings: Settings) -> ILLMClient:
+    if settings.llm_provider == "nvidia":
+        return NvidiaLLMClient(settings)
     return DeepSeekLLMClient(settings)
 
 
