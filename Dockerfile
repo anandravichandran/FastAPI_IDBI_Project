@@ -21,7 +21,11 @@ RUN pip install --no-cache-dir \
 # Heavy but has well-trodden, mutually-compatible dep paths.
 RUN pip install --no-cache-dir sentence-transformers
 # Phase 3 — chromadb (numpy, pandas, protobuf, grpcio, onnxruntime).
-# Isolates the onnx / grpc sub-graph from the openbb sub-graph.
+# Chromadb depends on tokenizers<=0.20.3 which has no cp314 wheel, so pip
+# builds it from source via maturin/Rust.  Render's build env has a read-only
+# /usr/local/cargo, so point CARGO_HOME at a writable temp dir.
+ENV CARGO_HOME=/tmp/cargo
+RUN mkdir -p $CARGO_HOME && pip install --no-cache-dir tokenizers==0.20.3
 RUN pip install --no-cache-dir chromadb
 # Phase 4 — openbb (the deepest tree: pandas, numpy, scipy, plotly, dash, ...).
 # Installed last so the resolver only has 3 new packages' constraints to satisfy
