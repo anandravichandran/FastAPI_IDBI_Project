@@ -1,5 +1,6 @@
 # Financial Suite
 
+
 An enterprise financial-intelligence platform that combines **five FastAPI
 microservices** behind a single gateway:
 
