@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    explicit_settings = settings is not None
     settings = settings or get_settings()
     configure_logging(level=settings.log_level, json_logs=settings.log_json)
 
@@ -44,6 +45,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
         lifespan=lifespan,
     )
+
+    # When a caller supplies an explicit Settings object (tests, or a
+    # gateway mounting this app with a custom configuration), make it
+    # authoritative across the entire dependency graph. get_service
+    # depends on get_settings(), a process-wide lru_cached singleton;
+    # without this override the injected settings are silently ignored
+    # and DI falls back to the global (production) configuration.
+    if explicit_settings:
+        app.dependency_overrides[get_settings] = lambda: settings
 
     app.add_middleware(RequestContextMiddleware)
     if not settings.is_production:

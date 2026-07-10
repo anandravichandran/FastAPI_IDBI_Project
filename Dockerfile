@@ -3,12 +3,30 @@ FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_UPGRADE_STRATEGY=only-if-needed
 
 WORKDIR /app
 
+# Upgrade pip first — newer resolvers handle deep dependency graphs better.
+# The build log reports pip 25.3 → 26.1.2 is available.
+RUN pip install --no-cache-dir --upgrade pip
+
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Phase 1 — lightweight core framework (fastapi, uvicorn, pydantic, httpx, jwt).
+# These resolve quickly and establish a stable base.
+RUN pip install --no-cache-dir \
+    fastapi uvicorn python-multipart pydantic pydantic-settings httpx PyJWT pypdf
+# Phase 2 — sentence-transformers (torch, transformers, huggingface-hub).
+# Heavy but has well-trodden, mutually-compatible dep paths.
+RUN pip install --no-cache-dir sentence-transformers
+# Phase 3 — chromadb (numpy, pandas, protobuf, grpcio, onnxruntime).
+# Isolates the onnx / grpc sub-graph from the openbb sub-graph.
+RUN pip install --no-cache-dir chromadb
+# Phase 4 — openbb (the deepest tree: pandas, numpy, scipy, plotly, dash, ...).
+# Installed last so the resolver only has 3 new packages' constraints to satisfy
+# against an already-resolved set of installed packages.
+RUN pip install --no-cache-dir openbb
 
 # Copy all sub-application packages and the unified entrypoint.
 COPY common ./common

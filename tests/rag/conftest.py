@@ -72,3 +72,28 @@ def sample_text() -> str:
         "fixed term at a guaranteed interest rate, suitable for capital "
         "preservation and short-term goals."
     )
+
+from rag.api import deps as _rag_deps  # noqa: E402
+from rag.core.config import get_settings as _get_settings  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _isolate_rag_storage(tmp_path, monkeypatch):
+    """Guarantee every RAG test runs in complete isolation.
+
+    * Forces the dependency-light backends (hashing + in-memory) so tests
+      never open ChromaDB or the persistent ./.chroma database.
+    * Points any Chroma path at an isolated tmp_path (defense in depth).
+    * Clears the process-wide settings and service caches before AND after
+      each test, so no singleton state leaks between tests or across runs,
+      ordering, or parallel workers.
+    """
+    monkeypatch.setenv("ENVIRONMENT", "local")
+    monkeypatch.setenv("EMBEDDING_BACKEND", "hashing")
+    monkeypatch.setenv("VECTOR_BACKEND", "memory")
+    monkeypatch.setenv("CHROMA_PERSIST_DIR", str(tmp_path / "chroma"))
+    _get_settings.cache_clear()
+    _rag_deps._build_service.cache_clear()
+    yield
+    _rag_deps._build_service.cache_clear()
+    _get_settings.cache_clear()

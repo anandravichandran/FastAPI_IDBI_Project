@@ -15,16 +15,27 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from rag.api import deps as rag_deps  # noqa: E402
 from rag.core.config import Settings  # noqa: E402
 from rag.main import create_app  # noqa: E402
 
 
 @pytest.fixture
-def client() -> TestClient:
-    os.environ["EMBEDDING_BACKEND"] = "hashing"
-    os.environ["VECTOR_BACKEND"] = "memory"
-    settings = Settings(embedding_backend="hashing", vector_backend="memory")
-    return TestClient(create_app(settings))
+def client(tmp_path) -> TestClient:
+    # Force the dependency-light backends (hashing embedder + in-memory
+    # vector store) and an isolated storage dir so the suite NEVER touches
+    # the persistent production Chroma database. create_app() makes these
+    # settings authoritative across the DI graph.
+    settings = Settings(
+        environment="local",
+        embedding_backend="hashing",
+        vector_backend="memory",
+        chroma_persist_dir=str(tmp_path / "chroma"),
+    )
+    rag_deps._build_service.cache_clear()
+    with TestClient(create_app(settings)) as test_client:
+        yield test_client
+    rag_deps._build_service.cache_clear()
 
 
 def test_health(client: TestClient) -> None:
