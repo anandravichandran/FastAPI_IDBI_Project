@@ -16,7 +16,6 @@ on:
 
 env:
   PYTHONUNBUFFERED: "1"
-  PIP_NO_CACHE_DIR: "1"
   # Run the server in synthetic / local mode so no external services needed.
   MARKET_PROVIDER_BACKEND: synthetic
   MARKET_RATE_LIMIT_ENABLED: "false"
