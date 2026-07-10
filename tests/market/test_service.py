@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 
-from market.core.config import Settings
 from market.core.exceptions import SymbolNotFoundError, UpstreamUnavailableError
 from market.domain.entities import (
     FinancialRatios,
@@ -12,7 +11,7 @@ from market.domain.entities import (
     Quote,
 )
 from market.domain.enums import AssetClass
-from market.repositories import SyntheticMarketDataProvider, TTLCache
+from market.repositories import SyntheticMarketDataProvider
 from market.repositories.retry import RetryPolicy
 from market.services import MarketService
 

@@ -5,7 +5,7 @@ import pytest
 
 from savings.core.config import Settings
 from savings.core.exceptions import DomainValidationError
-from savings.domain.entities import Goal, Loan, SavingsRequestData
+from savings.domain.entities import Loan, SavingsRequestData
 from savings.domain.enums import (
     EmergencyFundStatus,
     Instrument,

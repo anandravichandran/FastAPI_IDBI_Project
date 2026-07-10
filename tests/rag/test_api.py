@@ -6,8 +6,6 @@ backends via environment so no heavy dependency or real PDF is needed.
 """
 from __future__ import annotations
 
-import os
-
 import pytest
 
 pytest.importorskip("fastapi")

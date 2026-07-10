@@ -1,39 +1,38 @@
 # syntax=docker/dockerfile:1
+# =============================================================================
+# Financial Suite - production image
+# =============================================================================
+# Pinned to CPython 3.12 (slim) so every dependency installs from a prebuilt
+# manylinux wheel. This is the deterministic fix for the Render build failure
+# where the native runtime defaulted to Python 3.14, for which `tokenizers`
+# has no wheel and pip tried to compile it from source with maturin/Rust on a
+# read-only filesystem.
+# =============================================================================
 FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_UPGRADE_STRATEGY=only-if-needed
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    # Install ONLY prebuilt wheels for these native-extension packages. On
+    # cp312 the wheels exist, so this never triggers a Rust/maturin build; if a
+    # wheel were ever missing the build fails fast and loudly instead of
+    # silently invoking the Rust toolchain.
+    PIP_ONLY_BINARY=tokenizers,safetensors,torch
 
 WORKDIR /app
 
-# Upgrade pip first — newer resolvers handle deep dependency graphs better.
-# The build log reports pip 25.3 → 26.1.2 is available.
-RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --upgrade pip
 
+# Dependencies first for better layer caching. Installing straight from the
+# pinned requirements file guarantees the resolved versions match CI/local.
 COPY requirements.txt ./
-# Phase 1 — lightweight core framework (fastapi, uvicorn, pydantic, httpx, jwt).
-# These resolve quickly and establish a stable base.
-RUN pip install --no-cache-dir \
-    fastapi uvicorn python-multipart pydantic pydantic-settings httpx PyJWT pypdf
-# Phase 2 — sentence-transformers (torch, transformers, huggingface-hub).
-# Heavy but has well-trodden, mutually-compatible dep paths.
-RUN pip install --no-cache-dir sentence-transformers
-# Phase 3 — chromadb (numpy, pandas, protobuf, grpcio, onnxruntime).
-# Chromadb depends on tokenizers<=0.20.3 which has no cp314 wheel, so pip
-# builds it from source via maturin/Rust.  Render's build env has a read-only
-# /usr/local/cargo, so point CARGO_HOME at a writable temp dir.
-ENV CARGO_HOME=/tmp/cargo
-RUN mkdir -p $CARGO_HOME && pip install --no-cache-dir tokenizers==0.20.3
-RUN pip install --no-cache-dir chromadb
-# Phase 4 — openbb (the deepest tree: pandas, numpy, scipy, plotly, dash, ...).
-# Installed last so the resolver only has 3 new packages' constraints to satisfy
-# against an already-resolved set of installed packages.
-RUN pip install --no-cache-dir openbb
+RUN pip install -r requirements.txt
 
-# Copy all sub-application packages and the unified entrypoint.
+# Copy the shared library + every mounted sub-application + the entrypoint.
+# NOTE: `app/` is required - server.py imports app.core.middleware.
 COPY common ./common
+COPY app ./app
 COPY advisor ./advisor
 COPY coach ./coach
 COPY budget ./budget

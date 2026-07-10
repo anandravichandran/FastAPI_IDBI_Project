@@ -25,7 +25,6 @@ from coach.domain.entities import (
     CustomerFinancialProfile,
     FinancialSnapshot,
     KnowledgeSnippet,
-    LLMMessage,
 )
 from coach.domain.enums import AvatarEmotion, CoachIntent, MessageRole, Verdict
 from coach.domain.interfaces import (

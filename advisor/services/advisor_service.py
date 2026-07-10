@@ -20,7 +20,6 @@ import json
 from advisor.core.config import Settings
 from advisor.core.exceptions import AdviceGenerationError, LLMError
 from advisor.core.logging import get_logger, request_id_ctx
-from advisor.domain.entities import KnowledgeSnippet, MarketSnapshot
 from advisor.domain.interfaces.knowledge import IKnowledgeRepository
 from advisor.domain.interfaces.llm import ILLMClient
 from advisor.domain.interfaces.market_data import IMarketDataProvider
@@ -135,7 +134,6 @@ class AdvisorService:
         **ctx: object,
     ) -> tuple[str, list[str], bool, str]:
         request: AdviceRequest = ctx["request"]  # type: ignore[assignment]
-        model = self._settings.deepseek_model
         if not self._settings.llm_enabled:
             logger.info("LLM disabled; using deterministic explanation")
             return self._fallback_explanation(**ctx), [], False, "deterministic-fallback"

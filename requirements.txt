@@ -1,36 +1,42 @@
-# Shared web framework
-fastapi>=0.111,<1.0
-uvicorn[standard]>=0.29,<1.0
-# Multipart parsing for PDF uploads (RAG service).
-python-multipart>=0.0.9
+# =============================================================================
+# Financial Suite - production dependencies (PINNED for reproducible builds)
+# =============================================================================
+# TARGET RUNTIME: CPython 3.12  (see runtime.txt / .python-version / Dockerfile)
+#
+# Every package below publishes prebuilt manylinux **cp312** wheels, so a clean
+# `pip install -r requirements.txt` NEVER compiles native code:
+#   * no Rust/maturin build of `tokenizers`
+#   * no source build of torch / numpy / pydantic-core / grpcio / onnxruntime
+#
+# Do NOT install on Python 3.13/3.14: several of these wheels are not published
+# for those ABIs yet, so pip would fall back to source builds (the exact Render
+# failure this pinning fixes). The Docker image pins python:3.12-slim and sets
+# PIP_ONLY_BINARY so a missing wheel fails fast instead of invoking Rust.
+# -----------------------------------------------------------------------------
 
-# Configuration & validation
-pydantic>=2.7,<3.0
-pydantic-settings>=2.3,<3.0
+# --- Shared web framework ---------------------------------------------------
+fastapi==0.111.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
 
-# Async HTTP client for DeepSeek V3 (OpenAI-compatible API)
-httpx>=0.27,<1.0
+# --- Configuration & validation --------------------------------------------
+pydantic==2.9.2
+pydantic-settings==2.5.2
 
-# JWT verification for the shared authentication layer (common.security.auth).
-PyJWT>=2.8,<3.0
+# --- Async HTTP client (DeepSeek / NVIDIA, OpenAI-compatible) ---------------
+httpx==0.27.2
 
-# --- RAG service (/rag) ----------------------------------------------------
-# Production embedding model + vector store. The RAG service degrades
-# gracefully to a dependency-light hashing embedder + in-memory cosine store
-# in non-production environments when these are absent, but they are required
-# for a real deployment.
-sentence-transformers>=3.0,<3.6
-chromadb>=0.5,<0.6
-pypdf>=4.0,<5.0
+# --- Auth (shared common.security.auth) -------------------------------------
+PyJWT==2.9.0
 
-# --- Market Data service (/market) -----------------------------------------
-# OpenBB Platform SDK powering the Market Data service (stocks, funds, ETFs,
-# gold, indices, news, ratios, historical prices). Imported lazily; outside
-# production the service falls back to a deterministic synthetic provider when
-# it is not installed, so it remains optional for local/offline use.
-openbb>=4.3,<4.8
+# --- RAG service (/rag): embeddings + vector store + PDF parsing ------------
+# sentence-transformers -> transformers -> tokenizers (Rust ext, needs a wheel)
+# chromadb also depends on tokenizers. Both resolve to cp312 wheels on 3.12.
+sentence-transformers==3.0.1
+chromadb==0.5.5
+pypdf==4.3.1
 
-# --- Optional integrations -------------------------------------------------
-# Live market data for the Investment Advisor (falls back to a deterministic
-# stub provider when not installed / no PAT configured) — satisfied by the
-# 'openbb' dependency above.
+# --- Market Data service (/market) ------------------------------------------
+# OpenBB Platform SDK. Imported lazily; the service falls back to a synthetic
+# provider when absent, but it is required for real market data in production.
+openbb==4.3.1
