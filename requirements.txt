@@ -19,16 +19,16 @@ PyJWT>=2.8,<3.0
 # gracefully to a dependency-light hashing embedder + in-memory cosine store
 # in non-production environments when these are absent, but they are required
 # for a real deployment.
-sentence-transformers>=3.0
-chromadb>=0.5
-pypdf>=4.0
+sentence-transformers>=3.0,<3.6
+chromadb>=0.5,<0.6
+pypdf>=4.0,<5.0
 
 # --- Market Data service (/market) -----------------------------------------
 # OpenBB Platform SDK powering the Market Data service (stocks, funds, ETFs,
 # gold, indices, news, ratios, historical prices). Imported lazily; outside
 # production the service falls back to a deterministic synthetic provider when
 # it is not installed, so it remains optional for local/offline use.
-openbb>=4.3
+openbb>=4.3,<4.8
 
 # --- Optional integrations -------------------------------------------------
 # Live market data for the Investment Advisor (falls back to a deterministic
