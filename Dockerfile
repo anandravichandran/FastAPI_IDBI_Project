@@ -24,13 +24,11 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 
-# Dependencies first for better layer caching. Installing straight from the
-# pinned requirements file guarantees the resolved versions match CI/local.
+# Dependencies first for better layer caching.
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 # Copy the shared library + every mounted sub-application + the entrypoint.
-# NOTE: `app/` is required - server.py imports app.core.middleware.
 COPY common ./common
 COPY app ./app
 COPY advisor ./advisor
@@ -41,12 +39,17 @@ COPY rag ./rag
 COPY market ./market
 COPY server.py ./server.py
 
-RUN useradd --create-home --uid 10001 appuser
+# Create non-root user and ensure ChromaDB persistence directory is writable.
+RUN useradd --create-home --uid 10001 appuser && \
+    mkdir -p /app/.chroma && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+# Docker-level health check (Render uses /livez from render.yaml instead).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/livez').status==200 else 1)"
 
 # --timeout-graceful-shutdown lets in-flight requests finish (and the parent

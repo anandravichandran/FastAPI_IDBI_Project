@@ -1,10 +1,19 @@
 # Render deployment blueprint for the Financial Suite (modular monolith).
 # Docs: https://render.com/docs/blueprint-spec
 #
-# Secrets (API_KEYS, JWT_SECRET, DEEPSEEK/NVIDIA/OPENBB keys) are marked
-# sync:false so they are NEVER stored in git — set them in the Render dashboard
-# or a linked env group. Production defaults enable auth, rate limiting, HSTS
-# and a locked-down CORS/trusted-host policy.
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  REQUIRED: Set these sync:false secrets in the Render dashboard or an  ║
+# ║  env group BEFORE the first deploy. Without them the app will crash    ║
+# ║  at startup with EnvironmentValidationError:                           ║
+# ║                                                                        ║
+# ║    API_KEYS          – comma-separated allowlist (e.g. key1,key2)      ║
+# ║    JWT_SECRET        – HS256 signing secret (min 256-bit entropy)      ║
+# ║    TRUSTED_HOSTS     – e.g. financial-suite.onrender.com               ║
+# ║    CORS_ALLOW_ORIGINS – e.g. https://myapp.vercel.app                  ║
+# ║    DEEPSEEK_API_KEY  – DeepSeek API key (if LLM_PROVIDER=deepseek)     ║
+# ║    NVIDIA_API_KEY    – NVIDIA NIM key (if LLM_PROVIDER=nvidia)         ║
+# ║    OPENBB_PAT        – OpenBB Personal Access Token                    ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 services:
   - type: web
     name: financial-suite
@@ -24,9 +33,9 @@ services:
       # ---- Authentication (fail-closed in production) ----
       - key: AUTH_ENABLED
         value: "true"
-      - key: API_KEYS            # comma-separated allowlist of gateway API keys
+      - key: API_KEYS
         sync: false
-      - key: JWT_SECRET          # HS256 signing secret for bearer tokens
+      - key: JWT_SECRET
         sync: false
       - key: JWT_ALGORITHMS
         value: HS256
@@ -35,9 +44,9 @@ services:
       - key: JWT_AUDIENCE
         sync: false
       # ---- Network policy ----
-      - key: TRUSTED_HOSTS       # e.g. financial-suite.onrender.com,api.bank.example
+      - key: TRUSTED_HOSTS
         sync: false
-      - key: CORS_ALLOW_ORIGINS  # explicit origins; never '*' with credentials
+      - key: CORS_ALLOW_ORIGINS
         sync: false
       - key: CORS_ALLOW_CREDENTIALS
         value: "false"
